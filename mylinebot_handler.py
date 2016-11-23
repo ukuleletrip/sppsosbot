@@ -1,10 +1,6 @@
 #! /usr/bin/env python
 # -*- coding:utf-8 -*-
 #
-# you have to install Beautifulsoup.
-# $ mkdir libs
-# $ pip install -t libs beautifulsoup4
-
 
 """Callback Handler from LINE Bot platform"""
 
@@ -13,55 +9,46 @@ __author__ = 'ukuleletrip@gmail.com (Ukulele Trip)'
 #import sys
 #sys.path.insert(0, 'libs')
 import webapp2
-from google.appengine.api import urlfetch
 import json
 import logging
 from appkeys import APP_KEYS
 from datetime import datetime, timedelta
-import hmac, hashlib, base64
+from linebotapi import LineBotAPI, WebhookRequest, is_valid_signature
+from sosapi import SOSAPI
+from tzimpl import JST, UTC
 
-class LineBotAPI(object):
-    APIURL = 'https://api.line.me'
-
-    def __init__(self, token):
-        self.token = token
-
-    def replyMessage(self, msg, reply_token):
-        url = self.APIURL + '/v2/bot/message/reply'
-        result = urlfetch.fetch(
-            url=url,
-	    method=urlfetch.POST, 
-	    headers={'Content-Type':'application/json',
-                     'Authorization':'Bearer %s' % (self.token)
-            },
-	    payload=json.dumps({
-	        'replyToken' : reply_token,
-	        'messages' : [
-                    { 'type' : 'text',
-                      'text' : msg.encode('utf-8')}
-                ]
-            })
-        )
-        logging.debug(result.content)
-
-
-def is_valid_signature(request):
-    signature = base64.b64encode(hmac.new(APP_KEYS['line']['secret'],
-                                          request.body,
-                                          hashlib.sha256).digest())
-    return signature == request.headers.get('X-LINE-Signature')
+tz_jst = JST()
+tz_utc = UTC()
 
 class BotCallbackHandler(webapp2.RequestHandler):
     def post(self):
         logging.debug('kick from line server,\n %s' % self.request.body)
-        params = json.loads(self.request.body)
 
+        recv_req = WebhookRequest(self.request.body)
         line_bot_api = LineBotAPI(APP_KEYS['line']['token'])
 
-        if is_valid_signature(self.request):
-            recv_msg = params['events'][0]
-            line_bot_api.replyMessage(recv_msg['message']['text'],
-                                      recv_msg['replyToken'])
+        if is_valid_signature(APP_KEYS['line']['secret'],
+                              self.request.headers.get('X-LINE-Signature'),
+                              self.request.body):
+            
+            if recv_req.is_text_message():
+                sos_api = SOSAPI(APP_KEYS['SOS']['token'], APP_KEYS['SOS']['url'])
+                recv_msg = recv_req.get_message()
+                sensor_name = sos_api.get_sensor_name(recv_msg)
+
+                if sensor_name:
+                    value = sos_api.get_last_sensor_value('NagoyaU-Farm',
+                                                          'WeatherStation-LUFFT',
+                                                          sensor_name)
+                    now = datetime.now()
+                    td = now - value['datetime']
+                    td_min = (td.seconds + td.days*24*3600)/60
+                    before_str = ' (%d min before)' % (td_min) if td_min > 1 else ''
+
+                    line_bot_api.replyMessage('%.1f %s%s' % (value['value'],
+                                                             value['unit'],
+                                                             before_str),
+                                              recv_req.get_reply_token())
 
         return self.response.write(json.dumps({}))
 
