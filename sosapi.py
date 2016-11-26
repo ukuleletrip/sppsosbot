@@ -2,7 +2,7 @@
 # -*- coding:utf-8 -*-
 #
 
-from google.appengine.api import urlfetch
+from google.appengine.api import urlfetch, urlfetch_errors
 import urllib
 import logging
 import json
@@ -67,14 +67,16 @@ class SOSAPI(object):
                    'NRecords' : 1,
                    'OutputType' : 'json'
         }
-        for i in range(3):
+        for i in range(5):
             try:
                 result = urlfetch.fetch(url = self.url + urllib.urlencode(params))
                 logging.debug(result.content)
                 break
-            except DeadlineExceededError:
+            except urlfetch_errors.DeadlineExceededError:
                 # retry
                 continue
+        else:
+            return None
 
         measurement = json.loads(result.content)['BASEELEMENT']['Observations']['Measurement']
         return { 'datetime' : jst_to_utc(datetime.strptime(measurement['Time']['content'],
