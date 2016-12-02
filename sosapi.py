@@ -58,7 +58,25 @@ class SOSAPI(object):
                     return sensor_name
         return None
 
+    @staticmethod
+    def get_all_sensor_name():
+        sensors = []
+        for sensor_name in SOSAPI.sensor_names:
+            sensors.append(sensor_name)
+        return sensors
+
+    @staticmethod
+    def _measurement_to_valueobject(m):
+        return { 'name' : m['observedProperty'],
+                 'datetime' : jst_to_utc(datetime.strptime(m['Time']['content'],
+                                                           '%Y-%m-%d %H:%M:%S')),
+                 'value' : m['Result']['content'],
+                 'unit' : HTMLParser.HTMLParser().unescape(m['Result']['uom']) }
+
     def get_last_sensor_value(self, sosname, fsname, sensor):
+        if type(sensor) == list:
+            sensor = ','.join(sensor)
+
         params = { 'Key' : self.token,
                    'Cmd' : 'GET-SENSOR-OBSERVATION-LASTN',
                    'SOSName' : sosname,
@@ -67,19 +85,25 @@ class SOSAPI(object):
                    'NRecords' : 1,
                    'OutputType' : 'json'
         }
+
         for i in range(5):
             try:
-                result = urlfetch.fetch(url = self.url + urllib.urlencode(params))
+                result = urlfetch.fetch(url = self.url + urllib.urlencode(params),
+                                        deadline = 10)
                 logging.debug(result.content)
                 break
             except urlfetch_errors.DeadlineExceededError:
                 # retry
+                logging.debug('retry %d' % (i))
                 continue
         else:
             return None
 
         measurement = json.loads(result.content)['BASEELEMENT']['Observations']['Measurement']
-        return { 'datetime' : jst_to_utc(datetime.strptime(measurement['Time']['content'],
-                                                           '%Y-%m-%d %H:%M:%S')),
-                 'value' : measurement['Result']['content'],
-                 'unit' : HTMLParser.HTMLParser().unescape(measurement['Result']['uom']) }
+        if type(measurement) == list:
+            rv = []
+            for m in measurement:
+                rv.append(self._measurement_to_valueobject(m))
+            return rv
+        else:
+            return self._measurement_to_valueobject(measurement)

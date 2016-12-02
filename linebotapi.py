@@ -22,11 +22,17 @@ class WebhookRequest(object):
         return self.recv_msg['type'] == 'message' and \
             self.recv_msg['message']['type'] == 'text'
 
+    def is_follow(self):
+        return self.recv_msg['type'] == 'follow'
+
     def get_message(self):
         return self.recv_msg['message']['text']
 
     def get_reply_token(self):
         return self.recv_msg['replyToken']
+
+    def get_user_id(self):
+        return self.recv_msg['source']['userId']
 
 
 class LineBotAPI(object):
@@ -35,7 +41,7 @@ class LineBotAPI(object):
     def __init__(self, token):
         self.token = token
 
-    def replyMessage(self, msg, reply_token):
+    def reply_message(self, msg, reply_token):
         url = self.APIURL + '/v2/bot/message/reply'
         result = urlfetch.fetch(
             url=url,
@@ -53,4 +59,21 @@ class LineBotAPI(object):
         )
         logging.debug(result.content)
 
+    def send_message(self, msg, user_id):
+        url = self.APIURL + '/v2/bot/message/push'
+        result = urlfetch.fetch(
+            url=url,
+	    method=urlfetch.POST, 
+	    headers={'Content-Type':'application/json',
+                     'Authorization':'Bearer %s' % (self.token)
+            },
+	    payload=json.dumps({
+	        'to' : user_id,
+	        'messages' : [
+                    { 'type' : 'text',
+                      'text' : msg.encode('utf-8')}
+                ]
+            })
+        )
+        logging.debug(result.content)
         

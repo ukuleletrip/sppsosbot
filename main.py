@@ -16,13 +16,14 @@
 #
 import webapp2
 
-from mylinebot_handler import BotCallbackHandler
+from mylinebot_handler import BotCallbackHandler, PollHandler
 
 class MainHandler(webapp2.RequestHandler):
     def get(self):
         self.response.write('Hello world!')
 
 app = webapp2.WSGIApplication([
+    ('/admin/poll', PollHandler),
     ('/callback', BotCallbackHandler),
     ('/', MainHandler)
 ], debug=True)

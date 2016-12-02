@@ -1,0 +1,4 @@
+cron:
+- description: "polling sensor value"
+  url: /admin/poll
+  schedule: every 5 mins
