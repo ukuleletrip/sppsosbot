@@ -24,6 +24,10 @@ tz_utc = UTC()
 SOSNAME = 'NagoyaU-Farm'
 FSNAME = 'WeatherStation-LUFFT'
 
+def usage_msg():
+    return u'Please see our help page, http://sppsosbot.appspot.com/help'
+    
+
 class BotCallbackHandler(webapp2.RequestHandler):
     def post(self):
         logging.debug('kick from line server,\n %s' % self.request.body)
@@ -60,9 +64,12 @@ class BotCallbackHandler(webapp2.RequestHandler):
                                                                   value['unit'],
                                                                   before_str),
                                                    recv_req.get_reply_token())
+                else:
+                    # wrong sensor name or help
+                    line_bot_api.reply_message(usage_msg(), recv_req.get_reply_token())
 
             if recv_req.is_follow():
-                welcome_msg = u'Thank you for adding me as your friend !!!\n You can see how to use this bot in http://sppsosbot.appspot.com/help \n Enjoy!!!'
+                welcome_msg = u'Thank you for adding me to your friends !!!\n Please see our help page, http://sppsosbot.appspot.com/help \n Enjoy!!!'
                 line_bot_api.reply_message(welcome_msg,
                                            recv_req.get_reply_token())
 
