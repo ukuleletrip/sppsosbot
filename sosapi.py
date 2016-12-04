@@ -13,34 +13,34 @@ from tzimpl import jst_to_utc
 class SOSAPI(object):
     sensor_names = {
         'air_temperature' : [
-            'temperature',
-            'temp',
+            u'気温',
             u'温度',
-            u'気温'
+            'temperature',
+            'temp'
         ],
         'relative_humidity' : [
+            u'湿度',
             'humidity',
-            'hum',
-            u'湿度'
+            'hum'
         ],
         'air_pressure' : [
-            'pressure',
-            u'気圧'
+            u'気圧',
+            'pressure'
         ],
         'wind_speed' : [
-            'wind speed',
-            u'風速'
+            u'風速',
+            'wind speed'
         ],
         '1min_precipitation' : [
-            'precipitation',
             u'降雨',
-            u'降水'
+            u'降水',
+            'precipitation'
         ],
         'solar_irradiance' : [
+            u'日射',
             'solar',
             'irradiance',
-            'light',
-            u'日射'
+            'light'
         ]
     }
 
@@ -64,6 +64,13 @@ class SOSAPI(object):
         for sensor_name in SOSAPI.sensor_names:
             sensors.append(sensor_name)
         return sensors
+
+    @staticmethod
+    def get_sensor_readable_name(sensor_name):
+        names = SOSAPI.sensor_names.get(sensor_name)
+        if names:
+            return names[0]
+        return ''
 
     @staticmethod
     def _measurement_to_valueobject(m):
