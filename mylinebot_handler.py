@@ -28,6 +28,10 @@ SOSNAME = 'NagoyaU-Farm'
 FSNAME = 'WeatherStation-LUFFT'
 BLANK_ALERT_MIN = 30
 
+ALERT_KEEP = 0
+ALERT_TURNED_ON = 1
+ALERT_TURNED_OFF = 2
+
 def parse_alert_setting(user_id, msg):
     mo = re.match(ur'(\S+)が([0-9.]+).*(以上|以下|大きく|小さく|高く|低く|越え|超え).*(知らせて|教えて)',
                   unicodedata.normalize('NFKC', msg))
@@ -60,7 +64,7 @@ def parse_alert_setting(user_id, msg):
 
 
 def usage_msg():
-    return u'Please see our help page, http://sppsosbot.appspot.com/help'
+    return u'使い方は以下のページをお読みください。\nhttp://sppsosbot.appspot.com/help'
     
 
 class BotCallbackHandler(webapp2.RequestHandler):
@@ -79,7 +83,7 @@ class BotCallbackHandler(webapp2.RequestHandler):
                 recv_msg = recv_req.get_message()
 
                 if parse_alert_setting(recv_req.get_user_id(), recv_msg):
-                    line_bot_api.reply_message(u'Alert was set.',
+                    line_bot_api.reply_message(u'アラートをセットしました！\n指定した条件になった時や%d分データが途絶した時にメッセージでお知らせします。' % (BLANK_ALERT_MIN),
                                                recv_req.get_reply_token())
                 else:
                     sensor_name = SOSAPI.get_sensor_name(recv_msg)
@@ -108,11 +112,31 @@ class BotCallbackHandler(webapp2.RequestHandler):
                         line_bot_api.reply_message(usage_msg(), recv_req.get_reply_token())
 
             elif recv_req.is_follow():
-                welcome_msg = u'Thank you for adding me to your friends !!!\n Please see our help page, http://sppsosbot.appspot.com/help \n Enjoy!!!'
+                welcome_msg = u'ご利用ありがとうございます。\n使い方は以下のページをお読みください。\nhttp://sppsosbot.appspot.com/help'
                 line_bot_api.reply_message(welcome_msg,
                                            recv_req.get_reply_token())
 
         return self.response.write(json.dumps({}))
+
+
+def is_alert_occurred(value, alert_type, alert_value):
+    return (alert_type == Alert.IF_LE and value <= alert_value) or \
+        (alert_type == Alert.IF_LT and value < alert_value) or \
+        (alert_type == Alert.IF_GE and value >= alert_value) or \
+        (alert_type == Alert.IF_GT and value > alert_value)
+
+def check_alert(prev_value, value, alert_type, alert_value):
+    if is_alert_occurred(prev_value, alert_type, alert_value) and \
+       not is_alert_occurred(value, alert_type, alert_value):
+        # alert on -> off
+        return ALERT_TURNED_OFF
+    elif not is_alert_occurred(prev_value, alert_type, alert_value) and \
+         is_alert_occurred(value, alert_type, alert_value):
+        # alert off -> on
+        return ALERT_TURNED_ON
+
+    # alert status is not changed
+    return ALERT_KEEP
 
 
 class PollHandler(webapp2.RequestHandler):
@@ -141,6 +165,7 @@ class PollHandler(webapp2.RequestHandler):
                             alert.put()
                     continue
 
+                # reset blank alert
                 query = Alert.query(Alert.sensor_name == value['name'],
                                     Alert.status == Alert.STAT_BLANK)
                 alerts_to_reset = query.fetch()
@@ -156,24 +181,19 @@ class PollHandler(webapp2.RequestHandler):
                                         Alert.value <= max(prev_value['value'], value['value']))
                     alerts_to_check = query.fetch()
                     for alert in alerts_to_check:
-                        if prev_value['value'] > value['value']:
-                            # down
-                            if alert.alert_type == Alert.IF_LE:
-                                if prev_value['value'] > alert.value and \
-                                   value['value'] <= alert.value:
-                                    alert.status = Alert.STAT_ON
-                            elif alert.alert_type == Alert.IF_LT:
-                                if prev_value['value'] >= alert.value and \
-                                   value['value'] < alert.value:
-                                    alert.status = Alert.STAT_ON
-                            elif alert.alert_type == Alert.IF_GE:
-                                if prev_value['value'] >= alert.value and \
-                                   value['value'] < alert.value:
-                                    alert.status = Alert.STAT_OFF
-                            elif alert.alert_type == Alert.IF_GT:
-                                if prev_value['value'] > alert.value and \
-                                   value['value'] <= alert.value:
-                                    alert.status = Alert.STAT_OFF
+                        rv = check_alert(prev_value['value'], value['value'],
+                                         alert.alert_type, alert.value)
+                        if rv == ALERT_TURNED_ON:
+                            alert.status = Alert.STAT_ON
+                            alert.put()
+                            line_bot_api.send_message(u'%s: %.1f %sになりました。' % \
+                                                (SOSAPI.get_sensor_readable_name(value['name']),
+                                                 value['value'], value['unit']),
+                                                      alert.key.id())
+
+                        elif rv == ALERT_TURNED_OFF:
+                            alert.status = Alert.STAT_OFF
+                            alert.put()
 
 
                 memcache.set(value['name'], value)

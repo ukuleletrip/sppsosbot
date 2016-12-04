@@ -26,9 +26,9 @@
     <div class="row">
       <div class="col-sm-8 blog-main">
         <div class="blog-post">
-          <h2 class="blog-post-title">Basic Usage</h2>
-          <h3>Querying sensor values</h3>
-		  <p>You can get the latest sensor value by sending message as below:</p>
+          <h2 class="blog-post-title">基本的な使い方</h2>
+          <h3>センサ値を確認する</h3>
+		  <p>以下のようなメッセージを送るとセンサ値を確認することができます。</p>
 		  <ul>
 			<li>気温は？</li>
 			<li>temperature?</li>
@@ -44,6 +44,18 @@
 			<li>irradiance?</li>
 			<li>solar?</li>
 		  </ul>
+		  <h3>アラートを設定する</h3>
+		  <p>以下のような形式のメッセージを送るとアラートを設定することができます。</p>
+		  <p><b>[センサ名]が[センサ値][条件][知らせて|教えて]</b></p>
+		  <ul>
+			<li>気温が10.5度以上になったら知らせて</li>
+			<li>湿度が50%より小さくなったら知らせて</li>
+			<li>雨量が0.5mmより大きくなったら教えて</li>
+			<li>風速が5m以下になったら知らせて</li>
+			<li>温度が30℃より高くなったら教えて</li>
+		  </ul>
+		  <p>指定した条件に達した時、また対象データが途絶している時に、メッセージで通知します。<br>
+			アラートはユーザ毎に1つだけ設定可能です。新たにアラートを設定すると前のアラートは上書きされます。</p>
 		</div>
 	  </div>
 	  <img src="../img/klq4712d.png" width="150"/>
