@@ -10,7 +10,7 @@ import HTMLParser
 from datetime import datetime, tzinfo
 from tzimpl import jst_to_utc
 
-class SOSAPI(object):
+class CloudSenseAPI(object):
     sensor_names = {
         'air_temperature' : [
             u'気温',
@@ -50,7 +50,7 @@ class SOSAPI(object):
 
     @staticmethod
     def get_sensor_name(name):
-        for sensor_name, alt_names in SOSAPI.sensor_names.items():
+        for sensor_name, alt_names in CloudSenseAPI.sensor_names.items():
             if name == sensor_name:
                 return sensor_name
             for alt_name in alt_names:
@@ -61,13 +61,13 @@ class SOSAPI(object):
     @staticmethod
     def get_all_sensor_name():
         sensors = []
-        for sensor_name in SOSAPI.sensor_names:
+        for sensor_name in CloudSenseAPI.sensor_names:
             sensors.append(sensor_name)
         return sensors
 
     @staticmethod
     def get_sensor_readable_name(sensor_name):
-        names = SOSAPI.sensor_names.get(sensor_name)
+        names = CloudSenseAPI.sensor_names.get(sensor_name)
         if names:
             return names[0]
         return ''

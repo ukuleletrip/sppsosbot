@@ -14,7 +14,7 @@ import logging
 from appkeys import APP_KEYS
 from datetime import datetime, timedelta
 from linebotapi import LineBotAPI, WebhookRequest, is_valid_signature
-from sosapi import SOSAPI
+from cloudsense import CloudSenseAPI as CSAPI
 from tzimpl import JST, UTC
 from google.appengine.api import memcache
 from db import Alert
@@ -36,7 +36,7 @@ def parse_alert_setting(user_id, msg):
     mo = re.match(ur'(\S+)が([0-9.]+).*(以上|以下|大きく|小さく|高く|低く|越え|超え).*(知らせて|教えて)',
                   unicodedata.normalize('NFKC', msg))
     if mo:
-        sensor_name = SOSAPI.get_sensor_name(mo.group(1))
+        sensor_name = CSAPI.get_sensor_name(mo.group(1))
         if sensor_name:
             cond = mo.group(3)
             if cond == u'以上':
@@ -79,21 +79,21 @@ class BotCallbackHandler(webapp2.RequestHandler):
                               self.request.body):
             
             if recv_req.is_text_message():
-                sos_api = SOSAPI(APP_KEYS['SOS']['token'], APP_KEYS['SOS']['url'])
+                cs_api = CSAPI(APP_KEYS['SOS']['token'], APP_KEYS['SOS']['url'])
                 recv_msg = recv_req.get_message()
 
                 if parse_alert_setting(recv_req.get_user_id(), recv_msg):
                     line_bot_api.reply_message(u'アラートをセットしました！\n指定した条件になった時や%d分データが途絶した時にメッセージでお知らせします。' % (BLANK_ALERT_MIN),
                                                recv_req.get_reply_token())
                 else:
-                    sensor_name = SOSAPI.get_sensor_name(recv_msg)
+                    sensor_name = CSAPI.get_sensor_name(recv_msg)
                     if sensor_name:
                         # at first, check cache
                         value = memcache.get(sensor_name)
                         if value:
                             logging.debug('read from memcache')
                         else:
-                            value = sos_api.get_last_sensor_value(SOSNAME, FSNAME,
+                            value = cs_api.get_last_sensor_value(SOSNAME, FSNAME,
                                                                   sensor_name)
                             if value:
                                 memcache.add(sensor_name, value)
@@ -141,10 +141,10 @@ def check_alert(prev_value, value, alert_type, alert_value):
 
 class PollHandler(webapp2.RequestHandler):
     def get(self):
-        sos_api = SOSAPI(APP_KEYS['SOS']['token'], APP_KEYS['SOS']['url'])
+        cs_api = CSAPI(APP_KEYS['SOS']['token'], APP_KEYS['SOS']['url'])
         line_bot_api = LineBotAPI(APP_KEYS['line']['token'])
-        values = sos_api.get_last_sensor_value(SOSNAME, FSNAME,
-                                               SOSAPI.get_all_sensor_name())
+        values = cs_api.get_last_sensor_value(SOSNAME, FSNAME,
+                                               CSAPI.get_all_sensor_name())
         if values:
             for value in values:
                 # check blank
@@ -158,7 +158,7 @@ class PollHandler(webapp2.RequestHandler):
                         logging.debug(alert.key.id())
                         if alert.status != Alert.STAT_BLANK:
                             line_bot_api.send_message(u'%s: %d分間途絶しています' % \
-                                                   (SOSAPI.get_sensor_readable_name(value['name']),
+                                                   (CSAPI.get_sensor_readable_name(value['name']),
                                                        td_min),
                                                       alert.key.id())
                             alert.status = Alert.STAT_BLANK
@@ -187,7 +187,7 @@ class PollHandler(webapp2.RequestHandler):
                             alert.status = Alert.STAT_ON
                             alert.put()
                             line_bot_api.send_message(u'%s: %.1f %sになりました。' % \
-                                                (SOSAPI.get_sensor_readable_name(value['name']),
+                                                (CSAPI.get_sensor_readable_name(value['name']),
                                                  value['value'], value['unit']),
                                                       alert.key.id())
 
