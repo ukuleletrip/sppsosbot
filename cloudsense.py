@@ -96,7 +96,7 @@ class CloudSenseAPI(object):
         for i in range(5):
             try:
                 result = urlfetch.fetch(url = self.url + urllib.urlencode(params),
-                                        deadline = 10)
+                                        deadline = 30)
                 logging.debug(result.content)
                 break
             except urlfetch_errors.DeadlineExceededError:
