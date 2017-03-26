@@ -33,8 +33,9 @@ ALERT_TURNED_ON = 1
 ALERT_TURNED_OFF = 2
 
 def parse_alert_setting(user_id, msg):
+    norm_msg = unicodedata.normalize('NFKC', msg)
     mo = re.match(ur'(\S+)が([0-9.]+).*(以上|以下|大きく|小さく|高く|低く|越え|超え).*(知らせて|教えて)',
-                  unicodedata.normalize('NFKC', msg))
+                  norm_msg)
     if mo:
         sensor_name = CSAPI.get_sensor_name(mo.group(1))
         if sensor_name:
@@ -56,6 +57,11 @@ def parse_alert_setting(user_id, msg):
             alert.value = float(mo.group(2))
             alert.alert_type = at
             alert.status = Alert.STAT_OFF
+
+            mo_hyst = re.search(ur'ヒステリシスは([0-9.]+)', norm_msg)
+            if mo_hyst:
+                alert.hyst = float(mo_hyst.group(1))
+
             alert.put()
 
             return True
@@ -138,6 +144,24 @@ def check_alert(prev_value, value, alert_type, alert_value):
     # alert status is not changed
     return ALERT_KEEP
 
+def is_alert_occurred_context(value, alert_type, alert_value, hyst):
+    return (alert_type == Alert.IF_LE and value <= alert_value+hyst) or \
+        (alert_type == Alert.IF_LT and value < alert_value+hyst) or \
+        (alert_type == Alert.IF_GE and value >= alert_value-hyst) or \
+        (alert_type == Alert.IF_GT and value > alert_value-hyst)
+
+def check_alert_context(prev_value, value, alert_type, alert_value, alert_status, hyst):
+    if alert_status == ALERT_ON and \
+       not is_alert_occurred_context(value, alert_type, alert_value, hyst):
+        # alert on -> off
+        return ALERT_TURNED_OFF
+    elif alert_status == ALERT_OFF and \
+         is_alert_occurred(value, alert_type, alert_value):
+        # alert off -> on
+        return ALERT_TURNED_ON
+
+    # alert status is not changed
+    return ALERT_KEEP
 
 class PollHandler(webapp2.RequestHandler):
     def get(self):
@@ -181,8 +205,10 @@ class PollHandler(webapp2.RequestHandler):
                                         Alert.value <= max(prev_value['value'], value['value']))
                     alerts_to_check = query.fetch()
                     for alert in alerts_to_check:
-                        rv = check_alert(prev_value['value'], value['value'],
-                                         alert.alert_type, alert.value)
+                        hyst = alert.hyst if alert.hyst is not None else 0
+                        rv = check_alert_context(prev_value['value'], value['value'],
+                                                 alert.alert_type, alert.value,
+                                                 alert.status, hyst)
                         if rv == ALERT_TURNED_ON:
                             alert.status = Alert.STAT_ON
                             alert.put()

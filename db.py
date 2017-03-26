@@ -16,6 +16,7 @@ class Alert(ndb.Model):
     value = ndb.FloatProperty(required=True)
     alert_type = ndb.IntegerProperty(required=True)
     status = ndb.IntegerProperty(required=True, default=STAT_OFF)
+    hyst = ndb.FloatProperty()
 
     @staticmethod
     def get_key(user_id):
