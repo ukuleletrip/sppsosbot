@@ -151,11 +151,11 @@ def is_alert_occurred_context(value, alert_type, alert_value, hyst):
         (alert_type == Alert.IF_GT and value > alert_value-hyst)
 
 def check_alert_context(prev_value, value, alert_type, alert_value, alert_status, hyst):
-    if alert_status == ALERT_ON and \
+    if alert_status == Alert.STAT_ON and \
        not is_alert_occurred_context(value, alert_type, alert_value, hyst):
         # alert on -> off
         return ALERT_TURNED_OFF
-    elif alert_status == ALERT_OFF and \
+    elif alert_status == Alert.STAT_OFF and \
          is_alert_occurred(value, alert_type, alert_value):
         # alert off -> on
         return ALERT_TURNED_ON
