@@ -145,10 +145,10 @@ def check_alert(prev_value, value, alert_type, alert_value):
     return ALERT_KEEP
 
 def is_alert_occurred_context(value, alert_type, alert_value, hyst):
-    return (alert_type == Alert.IF_LE and value <= alert_value+hyst) or \
-        (alert_type == Alert.IF_LT and value < alert_value+hyst) or \
-        (alert_type == Alert.IF_GE and value >= alert_value-hyst) or \
-        (alert_type == Alert.IF_GT and value > alert_value-hyst)
+    return (alert_type == Alert.IF_LE and value <= alert_value-hyst) or \
+        (alert_type == Alert.IF_LT and value < alert_value-hyst) or \
+        (alert_type == Alert.IF_GE and value >= alert_value+hyst) or \
+        (alert_type == Alert.IF_GT and value > alert_value+hyst)
 
 def check_alert_context(prev_value, value, alert_type, alert_value, alert_status, hyst):
     if alert_status == Alert.STAT_ON and \
